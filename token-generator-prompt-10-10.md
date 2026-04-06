@@ -16,22 +16,26 @@ You are an expert full-stack engineer specializing in Web3 fintech applications.
 
 ## Tech Stack (Locked Versions)
 
+> **Version Note:** All versions below are the verified latest as of April 2026 (confirmed via npm registry).
+
 ### Frontend
-- **Next.js 14.2+** (App Router, server actions preferred over API routes where safe)
-- **React 18.3+**
-- **Tailwind CSS 3.4+**
-- **shadcn/ui** (for consistent, accessible components)
-- **Ethers.js 6.7+** (v6 imports/patterns, not v5)
-- **React Query/TanStack Query** (for async state, caching, polling)
-- **Zod** (runtime validation)
+- **Next.js 16.2.2** (App Router, server actions preferred over API routes where safe)
+- **React 19.2.4**
+- **Tailwind CSS 4.2.2** (v4 — CSS-based config via `@import "tailwindcss"` + `@theme`; no `tailwind.config.js`; use `@tailwindcss/postcss` in PostCSS)
+- **shadcn/ui** (latest, Tailwind v4 compatible; use `npx shadcn@latest init`)
+- **Ethers.js 6.16.0** (v6 imports/patterns, not v5)
+- **TanStack Query 5.96.2** (for async state, caching, polling)
+- **Zod 4.3.6** (runtime validation)
+- **react-hook-form 7.72.1** + **@hookform/resolvers 5.2.2**
+- **TypeScript 6.0.2** (strict mode)
 
 ### Backend
-- **Next.js API Routes** (Node.js runtime)
-- **Supabase** (Auth: JWT-based, Database: PostgreSQL)
+- **Next.js API Routes** (Node.js runtime, requires Node.js ≥ 20.9.0)
+- **Supabase 2.101.1** (`@supabase/supabase-js`) + **@supabase/ssr 0.10.0**
 - **Supabase Realtime** (optional: watch token deployment status)
 
 ### Blockchain
-- **Ethers.js v6** (for wallet interaction and contract deployment)
+- **Ethers.js 6.16.0** (for wallet interaction and contract deployment)
 - **Solidity ^0.8.19** (ERC20 + OpenZeppelin Contracts)
 - **Sepolia Testnet** (primary network for MVP)
 
@@ -214,7 +218,7 @@ token-generator/
 │   ├── supabase/
 │   │   ├── client.ts             # Client-side Supabase instance
 │   │   ├── server.ts             # Server-side (API routes)
-│   │   └── middleware.ts         # Auth checks
+│   │   └── middleware.ts         # Auth session helper (used by proxy.ts)
 │   ├── blockchain/
 │   │   ├── deployer.ts           # ethers.js deployment logic
 │   │   ├── abi.ts                # ERC20 ABI
@@ -234,12 +238,10 @@ token-generator/
 ├── public/
 │   ├── favicon.ico
 │   └── assets/
-├── styles/
-│   └── globals.css               # Tailwind directives
 ├── .env.example                  # Template for env vars
 ├── .env.local                    # LOCAL ONLY, never commit
-├── next.config.js
-├── tailwind.config.js
+├── next.config.mjs               # Next.js 16 config
+├── proxy.ts                      # Request proxy/middleware (Next.js 16 convention)
 ├── tsconfig.json
 ├── package.json
 └── README.md
@@ -621,9 +623,12 @@ export const TOKEN_LIMITS = {
 | OpenZeppelin ERC20 | Audited, standard, reduces security risk |
 | Server-side deployment | Protect private key, ensure nonce safety, handle long operations |
 | Supabase RLS | Fine-grained access control, no app-level permission logic needed |
-| React Query | Handles caching, refetching, race conditions automatically |
-| Zod validation | Type-safe runtime validation, good error messages |
+| TanStack Query v5 | Handles caching, refetching, race conditions automatically |
+| Zod v4 | Type-safe runtime validation, good error messages |
 | Ethers.js v6 | Modern syntax, better TypeScript support, active maintenance |
+| Tailwind CSS v4 | CSS-based config (`@import "tailwindcss"` + `@theme`); no `tailwind.config.js`; use `@tailwindcss/postcss` |
+| React 19 | Concurrent features, improved server components, stable `useActionState` |
+| Next.js 16 | Uses `proxy.ts` instead of `middleware.ts` for request interception |
 
 ---
 
@@ -635,7 +640,7 @@ When implementing, follow this order:
 2. **Database**: Supabase schema, RLS policies, migrations
 3. **Smart Contract**: Token.sol, compile, test locally
 4. **Core API**: POST /api/tokens (deployment logic)
-5. **Auth**: login, signup pages, middleware
+5. **Auth**: login, signup pages, proxy (Next.js 16 uses `proxy.ts` not `middleware.ts`)
 6. **Dashboard**: list tokens, stats, empty state
 7. **Token Form**: create-token page, validation, submission
 8. **UI Polish**: responsive design, loading states, error states
