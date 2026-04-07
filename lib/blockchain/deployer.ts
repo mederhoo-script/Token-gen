@@ -52,10 +52,10 @@ export async function estimateDeploymentGas(
   params: DeployTokenParams,
 ): Promise<{ gasEstimate: bigint; gasCost: string }> {
   const provider = getProvider();
-  const wallet = getWallet(provider);
   const bytecode = getBytecode();
 
-  const factory = new ethers.ContractFactory(TOKEN_ABI, bytecode, wallet);
+  // No wallet needed for estimation — use ZeroAddress as a placeholder sender.
+  const factory = new ethers.ContractFactory(TOKEN_ABI, bytecode);
   const deployTx = await factory.getDeployTransaction(
     params.name,
     params.symbol,
@@ -65,7 +65,7 @@ export async function estimateDeploymentGas(
 
   const gasEstimate = await provider.estimateGas({
     ...deployTx,
-    from: wallet.address,
+    from: ethers.ZeroAddress,
   });
 
   const feeData = await provider.getFeeData();

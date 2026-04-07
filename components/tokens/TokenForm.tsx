@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { ethers } from "ethers";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { tokenSchema, type TokenFormData } from "@/lib/validation/schemas";
@@ -8,8 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CHAIN_CONFIG } from "@/lib/blockchain/constants";
+import { CHAIN_CONFIG, FACTORY_ADDRESS, DEPLOYMENT_FEE_ETH } from "@/lib/blockchain/constants";
+import { FACTORY_ABI } from "@/lib/blockchain/factory-abi";
 import { useToast } from "@/lib/hooks/use-toast";
+import { useWallet } from "@/lib/hooks/useWallet";
+
+/** Step within the deploy flow — used to show contextual status messages. */
+type DeployStep = "idle" | "signing" | "mining" | "saving";
 
 interface DeployResult {
   contractAddress: string;
@@ -17,15 +23,30 @@ interface DeployResult {
   explorerUrl: string;
 }
 
+/** Typed interface for the TokenFactory contract methods used in the UI. */
+interface TokenFactoryContract {
+  deploymentFee(): Promise<bigint>;
+  createToken(
+    name: string,
+    symbol: string,
+    initialSupply: bigint,
+    decimalsValue: number,
+    overrides: { value: bigint },
+  ): Promise<ethers.ContractTransactionResponse>;
+}
+
 export function TokenForm() {
   const [error, setError] = useState<string | null>(null);
   const [deploying, setDeploying] = useState(false);
+  const [deployStep, setDeployStep] = useState<DeployStep>("idle");
   const [result, setResult] = useState<DeployResult | null>(null);
   const [copied, setCopied] = useState(false);
   const [gasCost, setGasCost] = useState<string | null>(null);
   const [estimating, setEstimating] = useState(false);
   const queryClient = useQueryClient();
   const { toast: showToast } = useToast();
+  const { address, isCorrectChain, connecting, error: walletError, connect, switchToTargetChain } =
+    useWallet();
 
   const {
     register,
@@ -96,25 +117,76 @@ export function TokenForm() {
   async function onSubmit(data: TokenFormData) {
     setError(null);
     setDeploying(true);
+    setDeployStep("signing");
     try {
-      const res = await fetch("/api/tokens", {
+      if (!window.ethereum) {
+        setError("MetaMask is not installed.");
+        return;
+      }
+      if (!FACTORY_ADDRESS) {
+        setError("Factory contract address is not configured. Contact support.");
+        return;
+      }
+
+      // 1. Connect to the user's wallet
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const factory = new ethers.Contract(
+        FACTORY_ADDRESS,
+        FACTORY_ABI,
+        signer,
+      ) as unknown as TokenFactoryContract;
+
+      // 2. Fetch the on-chain fee so the value is always exact
+      const fee = await factory.deploymentFee();
+
+      // 3. Submit the factory transaction — MetaMask opens for user confirmation
+      const tx = await factory.createToken(
+        data.name,
+        data.symbol,
+        BigInt(data.initialSupply),
+        data.decimals,
+        { value: fee },
+      );
+
+      // 4. Wait for on-chain confirmation
+      setDeployStep("mining");
+      const receipt = await tx.wait(1);
+      if (!receipt) throw new Error("No receipt returned after mining.");
+
+      // 5. Save to DB via the verify endpoint
+      setDeployStep("saving");
+      const res = await fetch("/api/tokens/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          txHash: receipt.hash,
+          name: data.name,
+          symbol: data.symbol,
+          initialSupply: data.initialSupply,
+          decimals: data.decimals,
+        }),
       });
       const json = await res.json();
       if (!json.success) {
-        setError(json.error ?? "Deployment failed");
+        setError(json.error ?? "Failed to save token record.");
         return;
       }
+
       setResult(json.data);
       queryClient.invalidateQueries({ queryKey: ["tokens"] });
-      showToast({ title: "Token deployed!", description: "Your ERC20 token is live on Sepolia." });
+      showToast({ title: "Token deployed!", description: "Your ERC20 token is live on-chain." });
       reset();
-    } catch {
-      setError("Network error. Please try again.");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Deployment failed";
+      if (msg.toLowerCase().includes("rejected") || msg.toLowerCase().includes("denied")) {
+        setError("Transaction rejected in MetaMask.");
+      } else {
+        setError(msg);
+      }
     } finally {
       setDeploying(false);
+      setDeployStep("idle");
     }
   }
 
@@ -154,6 +226,19 @@ export function TokenForm() {
     );
   }
 
+  function deployStepMessage(): string {
+    switch (deployStep) {
+      case "signing":
+        return "Please confirm the transaction in MetaMask…";
+      case "mining":
+        return "⏳ Transaction submitted. Waiting for confirmation (20–30s)…";
+      case "saving":
+        return "Saving your token record…";
+      default:
+        return "";
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 rounded-lg border p-6">
       {error && (
@@ -161,11 +246,14 @@ export function TokenForm() {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
-      {deploying && (
+      {walletError && !error && (
+        <Alert variant="destructive">
+          <AlertDescription>{walletError}</AlertDescription>
+        </Alert>
+      )}
+      {deploying && deployStep !== "idle" && (
         <Alert>
-          <AlertDescription>
-            ⏳ Deploying contract... This takes 20–30 seconds. Please wait.
-          </AlertDescription>
+          <AlertDescription>{deployStepMessage()}</AlertDescription>
         </Alert>
       )}
 
@@ -236,13 +324,47 @@ export function TokenForm() {
       {/* Gas estimate */}
       {(gasCost || estimating) && (
         <p className="text-sm text-muted-foreground">
-          {estimating ? "Estimating gas cost…" : `Estimated gas cost: ~${gasCost}`}
+          {estimating ? "Estimating network gas…" : `Estimated network gas: ~${gasCost}`}
         </p>
       )}
 
-      <Button type="submit" className="w-full" disabled={deploying || !isValid}>
-        {deploying ? "Deploying..." : "Deploy Token"}
-      </Button>
+      {/* Service fee notice */}
+      <div className="rounded-md border bg-muted/40 px-4 py-3 text-sm">
+        <span className="font-medium">Service fee:</span>{" "}
+        <span className="font-mono">{DEPLOYMENT_FEE_ETH} ETH</span>
+        <span className="ml-1 text-muted-foreground">(paid on-chain to deploy your token)</span>
+      </div>
+
+      {/* Wallet connection + deploy button */}
+      {!address ? (
+        <Button type="button" className="w-full" onClick={connect} disabled={connecting}>
+          {connecting ? "Connecting…" : "Connect Wallet to Deploy"}
+        </Button>
+      ) : !isCorrectChain ? (
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground text-center">
+            Switch to <strong>{CHAIN_CONFIG.name}</strong> to continue.
+          </p>
+          <Button type="button" className="w-full" onClick={switchToTargetChain}>
+            Switch to {CHAIN_CONFIG.name}
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <p className="truncate text-xs text-muted-foreground text-center">
+            Connected: {address}
+          </p>
+          <Button type="submit" className="w-full" disabled={deploying || !isValid}>
+            {deploying
+              ? deployStep === "signing"
+                ? "Waiting for MetaMask…"
+                : deployStep === "mining"
+                  ? "Confirming on-chain…"
+                  : "Saving…"
+              : `Deploy Token (${DEPLOYMENT_FEE_ETH} ETH fee)`}
+          </Button>
+        </div>
+      )}
     </form>
   );
 }
