@@ -2,7 +2,11 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { ethers } from "ethers";
-import { CHAIN_CONFIG } from "@/lib/blockchain/constants";
+import {
+  type ChainConfig,
+  SUPPORTED_CHAINS,
+  DEFAULT_CHAIN_ID,
+} from "@/lib/blockchain/chains";
 
 // Augment Window so TypeScript knows about window.ethereum
 declare global {
@@ -17,6 +21,8 @@ declare global {
 export interface WalletState {
   address: string | null;
   chainId: number | null;
+  selectedChain: ChainConfig;
+  setSelectedChain: (chain: ChainConfig) => void;
   isCorrectChain: boolean;
   connecting: boolean;
   error: string | null;
@@ -28,6 +34,9 @@ export interface WalletState {
 export function useWallet(): WalletState {
   const [address, setAddress] = useState<string | null>(null);
   const [chainId, setChainId] = useState<number | null>(null);
+  const [selectedChain, setSelectedChain] = useState<ChainConfig>(
+    SUPPORTED_CHAINS[DEFAULT_CHAIN_ID],
+  );
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,14 +72,32 @@ export function useWallet(): WalletState {
   const switchToTargetChain = useCallback(async () => {
     if (typeof window === "undefined" || !window.ethereum) return;
     setError(null);
+    const hexChainId = `0x${selectedChain.id.toString(16)}`;
+    const provider = new ethers.BrowserProvider(window.ethereum);
     try {
-      const hexChainId = `0x${CHAIN_CONFIG.id.toString(16)}`;
-      const provider = new ethers.BrowserProvider(window.ethereum);
       await provider.send("wallet_switchEthereumChain", [{ chainId: hexChainId }]);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to switch network");
+    } catch (switchError) {
+      // Error 4902: chain has not been added to MetaMask yet — add it first
+      const code = (switchError as { code?: number }).code;
+      if (code === 4902) {
+        try {
+          await provider.send("wallet_addEthereumChain", [
+            {
+              chainId: hexChainId,
+              chainName: selectedChain.name,
+              nativeCurrency: selectedChain.nativeCurrency,
+              rpcUrls: selectedChain.publicRpcUrls,
+              blockExplorerUrls: [selectedChain.explorerUrl],
+            },
+          ]);
+        } catch (addError) {
+          setError(addError instanceof Error ? addError.message : "Failed to add network");
+        }
+      } else {
+        setError(switchError instanceof Error ? switchError.message : "Failed to switch network");
+      }
     }
-  }, []);
+  }, [selectedChain]);
 
   // Keep state in sync when user changes account or chain inside MetaMask
   useEffect(() => {
@@ -97,7 +124,9 @@ export function useWallet(): WalletState {
   return {
     address,
     chainId,
-    isCorrectChain: chainId === CHAIN_CONFIG.id,
+    selectedChain,
+    setSelectedChain,
+    isCorrectChain: chainId === selectedChain.id,
     connecting,
     error,
     connect,
@@ -105,3 +134,4 @@ export function useWallet(): WalletState {
     switchToTargetChain,
   };
 }
+

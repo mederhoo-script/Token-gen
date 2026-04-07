@@ -3,11 +3,12 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatAddress, formatSupply, formatDate } from "@/lib/utils/format";
-import { CHAIN_CONFIG } from "@/lib/blockchain/constants";
+import { getChainConfig, DEFAULT_CHAIN_ID } from "@/lib/blockchain/chains";
 import type { Token } from "@/lib/hooks/useTokens";
 
 export function TokenCard({ token }: { token: Token }) {
   const [copied, setCopied] = useState(false);
+  const chain = getChainConfig(token.network_id) ?? getChainConfig(DEFAULT_CHAIN_ID)!;
 
   async function copy() {
     await navigator.clipboard.writeText(token.contract_address);
@@ -39,11 +40,11 @@ export function TokenCard({ token }: { token: Token }) {
       </div>
       <Button asChild variant="outline" size="sm" className="w-full">
         <a
-          href={`${CHAIN_CONFIG.explorerUrl}/address/${token.contract_address}`}
+          href={`${chain.explorerUrl}/address/${token.contract_address}`}
           target="_blank"
           rel="noopener noreferrer"
         >
-          View on Etherscan ↗
+          View on {chain.name} Explorer ↗
         </a>
       </Button>
     </div>

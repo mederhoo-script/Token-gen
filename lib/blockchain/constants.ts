@@ -1,9 +1,13 @@
-export const CHAIN_CONFIG = {
-  name: "Sepolia",
-  id: 11155111,
-  rpcUrl: process.env.SEPOLIA_RPC_URL ?? "",
-  explorerUrl: "https://sepolia.etherscan.io",
-} as const;
+import { SUPPORTED_CHAINS, DEFAULT_CHAIN_ID, getChainConfig } from "./chains";
+
+export { getChainConfig };
+
+/**
+ * Legacy single-chain config — points at the default chain (Sepolia).
+ * Used by the legacy server-side deploy path (`/api/tokens`).
+ * New code should use `getChainConfig(chainId)` from `./chains` instead.
+ */
+export const CHAIN_CONFIG = SUPPORTED_CHAINS[DEFAULT_CHAIN_ID];
 
 export const TOKEN_LIMITS = {
   maxPerUser: 5,
@@ -11,7 +15,11 @@ export const TOKEN_LIMITS = {
   maxSupply: 1_000_000_000,
 } as const;
 
-/** Address of the deployed TokenFactory contract (set NEXT_PUBLIC_FACTORY_ADDRESS in env). */
+/**
+ * Legacy single factory address env var — used by the legacy deploy path and
+ * as a fallback for Sepolia in the multi-chain factory address lookup.
+ * New code should use `getFactoryAddress(chainId)` from `./chains`.
+ */
 export const FACTORY_ADDRESS = process.env.NEXT_PUBLIC_FACTORY_ADDRESS ?? "";
 
 /**

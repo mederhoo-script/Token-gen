@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CHAIN_CONFIG, FACTORY_ADDRESS, DEPLOYMENT_FEE_ETH } from "@/lib/blockchain/constants";
+import { SUPPORTED_CHAINS_LIST, getFactoryAddress } from "@/lib/blockchain/chains";
+import { DEPLOYMENT_FEE_ETH } from "@/lib/blockchain/constants";
 import { FACTORY_ABI } from "@/lib/blockchain/factory-abi";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useWallet } from "@/lib/hooks/useWallet";
@@ -45,7 +46,7 @@ export function TokenForm() {
   const [estimating, setEstimating] = useState(false);
   const queryClient = useQueryClient();
   const { toast: showToast } = useToast();
-  const { address, isCorrectChain, connecting, error: walletError, connect, switchToTargetChain } =
+  const { address, isCorrectChain, connecting, error: walletError, connect, switchToTargetChain, selectedChain, setSelectedChain } =
     useWallet();
 
   const {
@@ -123,8 +124,11 @@ export function TokenForm() {
         setError("MetaMask is not installed.");
         return;
       }
-      if (!FACTORY_ADDRESS) {
-        setError("Factory contract address is not configured. Contact support.");
+      const factoryAddress = getFactoryAddress(selectedChain.id);
+      if (!factoryAddress) {
+        setError(
+          `Token factory is not deployed on ${selectedChain.name} yet. Please select another network.`,
+        );
         return;
       }
 
@@ -132,7 +136,7 @@ export function TokenForm() {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const factory = new ethers.Contract(
-        FACTORY_ADDRESS,
+        factoryAddress,
         FACTORY_ABI,
         signer,
       ) as unknown as TokenFactoryContract;
@@ -165,6 +169,7 @@ export function TokenForm() {
           symbol: data.symbol,
           initialSupply: data.initialSupply,
           decimals: data.decimals,
+          chainId: selectedChain.id,
         }),
       });
       const json = await res.json();
@@ -216,7 +221,7 @@ export function TokenForm() {
             rel="noopener noreferrer"
             className="block text-center text-primary hover:underline"
           >
-            View on {CHAIN_CONFIG.name} Etherscan →
+            View on {selectedChain.name} Explorer →
           </a>
         </div>
         <Button className="w-full" onClick={() => setResult(null)}>
@@ -256,6 +261,27 @@ export function TokenForm() {
           <AlertDescription>{deployStepMessage()}</AlertDescription>
         </Alert>
       )}
+
+      {/* Network selector */}
+      <div className="space-y-1">
+        <Label htmlFor="network">Network</Label>
+        <select
+          id="network"
+          className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+          value={selectedChain.id}
+          onChange={(e) => {
+            const chain = SUPPORTED_CHAINS_LIST.find((c) => c.id === Number(e.target.value));
+            if (chain) setSelectedChain(chain);
+          }}
+          disabled={deploying}
+        >
+          {SUPPORTED_CHAINS_LIST.map((chain) => (
+            <option key={chain.id} value={chain.id}>
+              {chain.name} ({chain.nativeCurrency.symbol})
+            </option>
+          ))}
+        </select>
+      </div>
 
       <div className="space-y-1">
         <Label htmlFor="name">Token Name</Label>
@@ -331,7 +357,9 @@ export function TokenForm() {
       {/* Service fee notice */}
       <div className="rounded-md border bg-muted/40 px-4 py-3 text-sm">
         <span className="font-medium">Service fee:</span>{" "}
-        <span className="font-mono">{DEPLOYMENT_FEE_ETH} ETH</span>
+        <span className="font-mono">
+          {DEPLOYMENT_FEE_ETH} {selectedChain.nativeCurrency.symbol}
+        </span>
         <span className="ml-1 text-muted-foreground">(paid on-chain to deploy your token)</span>
       </div>
 
@@ -343,10 +371,10 @@ export function TokenForm() {
       ) : !isCorrectChain ? (
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground text-center">
-            Switch to <strong>{CHAIN_CONFIG.name}</strong> to continue.
+            Switch to <strong>{selectedChain.name}</strong> to continue.
           </p>
           <Button type="button" className="w-full" onClick={switchToTargetChain}>
-            Switch to {CHAIN_CONFIG.name}
+            Switch to {selectedChain.name}
           </Button>
         </div>
       ) : (
@@ -361,7 +389,7 @@ export function TokenForm() {
                 : deployStep === "mining"
                   ? "Confirming on-chain…"
                   : "Saving…"
-              : `Deploy Token (${DEPLOYMENT_FEE_ETH} ETH fee)`}
+              : `Deploy Token (${DEPLOYMENT_FEE_ETH} ${selectedChain.nativeCurrency.symbol} fee)`}
           </Button>
         </div>
       )}

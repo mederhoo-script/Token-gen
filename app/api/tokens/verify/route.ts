@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ethers } from "ethers";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { CHAIN_CONFIG, FACTORY_ADDRESS } from "@/lib/blockchain/constants";
+import { FACTORY_ADDRESS } from "@/lib/blockchain/constants";
+import { getChainConfig, getChainRpcUrl, getFactoryAddress, DEFAULT_CHAIN_ID } from "@/lib/blockchain/chains";
 import { FACTORY_ABI } from "@/lib/blockchain/factory-abi";
 import { logServerError } from "@/lib/utils/errors";
 import { z } from "zod";
@@ -24,6 +25,8 @@ const verifySchema = z.object({
     .min(1)
     .max(1_000_000_000),
   decimals: z.union([z.literal(6), z.literal(8), z.literal(18)]),
+  /** Chain to verify against. Defaults to Sepolia for backward compatibility. */
+  chainId: z.number().int().positive().optional(),
 });
 
 /**
@@ -68,7 +71,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { txHash, name, symbol, initialSupply, decimals } = parsed.data;
+    const { txHash, name, symbol, initialSupply, decimals, chainId: rawChainId } = parsed.data;
+    const chainId = rawChainId ?? DEFAULT_CHAIN_ID;
+
+    const chainConfig = getChainConfig(chainId);
+    if (!chainConfig) {
+      return NextResponse.json(
+        { success: false, error: "Unsupported chain" },
+        { status: 400 },
+      );
+    }
 
     // --- Idempotency check ---
     const { data: existing } = await supabase
@@ -85,15 +97,18 @@ export async function POST(request: NextRequest) {
     }
 
     // --- On-chain verification ---
-    const rpcUrl = process.env.SEPOLIA_RPC_URL;
+    const rpcUrl = getChainRpcUrl(chainId);
     if (!rpcUrl) {
       return NextResponse.json(
-        { success: false, error: "RPC not configured" },
+        { success: false, error: `RPC not configured for ${chainConfig.name}` },
         { status: 500 },
       );
     }
 
     const provider = new ethers.JsonRpcProvider(rpcUrl);
+    // Resolve the factory address: prefer the per-chain env var, fall back to the
+    // legacy NEXT_PUBLIC_FACTORY_ADDRESS for the default chain.
+    const factoryAddress = getFactoryAddress(chainId) || (chainId === DEFAULT_CHAIN_ID ? FACTORY_ADDRESS : "");
     const receipt = await provider.getTransactionReceipt(txHash);
 
     if (!receipt) {
@@ -110,8 +125,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // When FACTORY_ADDRESS is configured, verify the tx targeted our contract
-    if (FACTORY_ADDRESS && receipt.to?.toLowerCase() !== FACTORY_ADDRESS.toLowerCase()) {
+    // When factoryAddress is configured, verify the tx targeted our contract
+    if (factoryAddress && receipt.to?.toLowerCase() !== factoryAddress.toLowerCase()) {
       return NextResponse.json(
         { success: false, error: "Transaction was not sent to the TokenFactory contract." },
         { status: 400 },
@@ -149,9 +164,9 @@ export async function POST(request: NextRequest) {
     // actual fee collected, not any excess ETH that was refunded to the caller on-chain.
     const [block, serviceFeeWei] = await Promise.all([
       provider.getBlock(receipt.blockNumber),
-      FACTORY_ADDRESS
+      factoryAddress
         ? provider
-            .call({ to: FACTORY_ADDRESS, data: new ethers.Interface(FACTORY_ABI).encodeFunctionData("deploymentFee") })
+            .call({ to: factoryAddress, data: new ethers.Interface(FACTORY_ABI).encodeFunctionData("deploymentFee") })
             .then((raw) => ethers.AbiCoder.defaultAbiCoder().decode(["uint256"], raw)[0] as bigint)
             .then((fee) => fee.toString())
             .catch(() => null)
@@ -178,7 +193,7 @@ export async function POST(request: NextRequest) {
         decimals,
         contract_address: contractAddress,
         deployment_tx_hash: txHash,
-        network_id: CHAIN_CONFIG.id,
+        network_id: chainId,
         deployed_at: deployedAt,
         fee_paid_wei: serviceFeeWei,
       })
@@ -201,7 +216,7 @@ export async function POST(request: NextRequest) {
           contractAddress,
           deploymentTxHash: txHash,
           deployedAt,
-          explorerUrl: `${CHAIN_CONFIG.explorerUrl}/tx/${txHash}`,
+          explorerUrl: `${chainConfig.explorerUrl}/tx/${txHash}`,
         },
       },
       { status: 201 },
