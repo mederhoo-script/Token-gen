@@ -14,7 +14,11 @@ export function SignupForm() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const { register, handleSubmit, formState: { errors } } = useForm<SignupFormData>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
   });
 
@@ -27,9 +31,14 @@ export function SignupForm() {
       const { error } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
-        options: { emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard` },
+        options: {
+          emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback?next=/dashboard`,
+        },
       });
-      if (error) { setError(error.message); return; }
+      if (error) {
+        setError(error.message);
+        return;
+      }
       router.push("/verify-email");
     } finally {
       setLoading(false);
@@ -55,8 +64,15 @@ export function SignupForm() {
       </div>
       <div className="space-y-1">
         <Label htmlFor="confirmPassword">Confirm Password</Label>
-        <Input id="confirmPassword" type="password" {...register("confirmPassword")} placeholder="••••••••" />
-        {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>}
+        <Input
+          id="confirmPassword"
+          type="password"
+          {...register("confirmPassword")}
+          placeholder="••••••••"
+        />
+        {errors.confirmPassword && (
+          <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
+        )}
       </div>
       <Button type="submit" className="w-full" disabled={loading}>
         {loading ? "Creating account..." : "Create Account"}

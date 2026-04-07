@@ -12,8 +12,8 @@ export default function HomePage() {
           Deploy ERC20 Tokens <span className="text-primary">Instantly</span>
         </h1>
         <p className="mb-8 max-w-xl text-lg text-muted-foreground">
-          Create and deploy custom ERC20 tokens on Sepolia without writing a single line of code.
-          No coding experience required.
+          Create and deploy custom ERC20 tokens on Sepolia without writing a single line of code. No
+          coding experience required.
         </p>
         <div className="flex gap-4">
           <Button asChild size="lg">

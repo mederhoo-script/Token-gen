@@ -8,7 +8,10 @@ import { TOKEN_LIMITS, CHAIN_CONFIG } from "@/lib/blockchain/constants";
 export async function GET() {
   try {
     const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
     if (authError || !user) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
@@ -22,7 +25,10 @@ export async function GET() {
 
     if (error) {
       logServerError("GET /api/tokens", error, { userId: user.id });
-      return NextResponse.json({ success: false, error: "Failed to fetch tokens" }, { status: 500 });
+      return NextResponse.json(
+        { success: false, error: "Failed to fetch tokens" },
+        { status: 500 },
+      );
     }
 
     return NextResponse.json({ success: true, data: tokens });
@@ -35,11 +41,20 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
     if (authError || !user) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
+
+    // Ensure user_profiles row exists (belt-and-suspenders; the DB trigger handles this on signup)
+    const serviceClient = createServiceClient();
+    await serviceClient
+      .from("user_profiles")
+      .upsert({ id: user.id, email: user.email }, { onConflict: "id", ignoreDuplicates: true });
 
     let body: unknown;
     try {
@@ -53,7 +68,7 @@ export async function POST(request: NextRequest) {
       const firstError = parsed.error.issues[0];
       return NextResponse.json(
         { success: false, error: firstError?.message ?? "Validation failed" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -69,7 +84,7 @@ export async function POST(request: NextRequest) {
     if ((count ?? 0) >= TOKEN_LIMITS.maxPerUser) {
       return NextResponse.json(
         { success: false, error: "Too many deployments. Max 5/hour" },
-        { status: 429 }
+        { status: 429 },
       );
     }
 
@@ -80,11 +95,10 @@ export async function POST(request: NextRequest) {
       logServerError("POST /api/tokens - deployment", error, { userId: user.id });
       return NextResponse.json(
         { success: false, error: "Deployment failed. Please try again." },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
-    const serviceClient = createServiceClient();
     const { data: token, error: dbError } = await serviceClient
       .from("tokens")
       .insert({
@@ -105,7 +119,7 @@ export async function POST(request: NextRequest) {
       logServerError("POST /api/tokens - db insert", dbError, { userId: user.id });
       return NextResponse.json(
         { success: false, error: "Failed to save token record" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -120,7 +134,7 @@ export async function POST(request: NextRequest) {
           explorerUrl: deployResult.explorerUrl,
         },
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     logServerError("POST /api/tokens", error);

@@ -2,8 +2,13 @@
 import { Component, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 
-interface Props { children: ReactNode }
-interface State { hasError: boolean; error?: Error }
+interface Props {
+  children: ReactNode;
+}
+interface State {
+  hasError: boolean;
+  error?: Error;
+}
 
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {

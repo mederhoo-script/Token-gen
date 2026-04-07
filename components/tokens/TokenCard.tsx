@@ -25,7 +25,10 @@ export function TokenCard({ token }: { token: Token }) {
         <span className="text-sm text-muted-foreground">{formatDate(token.deployed_at)}</span>
       </div>
       <div className="text-sm space-y-1">
-        <p><span className="text-muted-foreground">Supply:</span> {formatSupply(token.initial_supply)} ({token.decimals} decimals)</p>
+        <p>
+          <span className="text-muted-foreground">Supply:</span>{" "}
+          {formatSupply(token.initial_supply)} ({token.decimals} decimals)
+        </p>
         <div className="flex items-center gap-2">
           <span className="text-muted-foreground">Contract:</span>
           <span className="font-mono text-xs">{formatAddress(token.contract_address)}</span>

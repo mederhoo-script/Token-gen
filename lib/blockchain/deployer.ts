@@ -42,14 +42,14 @@ function getBytecode(): string {
   const bytecode = process.env.TOKEN_BYTECODE;
   if (!bytecode) {
     throw new Error(
-      "TOKEN_BYTECODE is not configured. Compile Token.sol and set the bytecode in your environment."
+      "TOKEN_BYTECODE is not configured. Compile Token.sol and set the bytecode in your environment.",
     );
   }
   return bytecode;
 }
 
 export async function estimateDeploymentGas(
-  params: DeployTokenParams
+  params: DeployTokenParams,
 ): Promise<{ gasEstimate: bigint; gasCost: string }> {
   const provider = getProvider();
   const wallet = getWallet(provider);
@@ -60,7 +60,7 @@ export async function estimateDeploymentGas(
     params.name,
     params.symbol,
     params.initialSupply,
-    params.decimals
+    params.decimals,
   );
 
   const gasEstimate = await provider.estimateGas({
@@ -76,9 +76,7 @@ export async function estimateDeploymentGas(
   return { gasEstimate, gasCost: `${parseFloat(costEth).toFixed(6)} ETH` };
 }
 
-export async function deployToken(
-  params: DeployTokenParams
-): Promise<DeployTokenResult> {
+export async function deployToken(params: DeployTokenParams): Promise<DeployTokenResult> {
   const provider = getProvider();
   const wallet = getWallet(provider);
   const bytecode = getBytecode();
@@ -89,7 +87,7 @@ export async function deployToken(
     params.name,
     params.symbol,
     params.initialSupply,
-    params.decimals
+    params.decimals,
   );
 
   const gasEstimate = await provider.estimateGas({
@@ -106,7 +104,7 @@ export async function deployToken(
     params.symbol,
     params.initialSupply,
     params.decimals,
-    { gasLimit: (gasEstimate * BigInt(120)) / BigInt(100) }
+    { gasLimit: (gasEstimate * BigInt(120)) / BigInt(100) },
   );
 
   const receipt = await contract.deploymentTransaction()!.wait(1);

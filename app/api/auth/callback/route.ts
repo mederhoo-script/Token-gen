@@ -28,13 +28,7 @@ export async function GET(request: NextRequest) {
     // Email OTP / magic-link / email confirmation flow
     const { error } = await supabase.auth.verifyOtp({
       token_hash: tokenHash,
-      type: type as
-        | "email"
-        | "signup"
-        | "recovery"
-        | "invite"
-        | "magiclink"
-        | "email_change",
+      type: type as "email" | "signup" | "recovery" | "invite" | "magiclink" | "email_change",
     });
     if (!error) {
       return NextResponse.redirect(new URL(next, origin));

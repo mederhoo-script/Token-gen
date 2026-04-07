@@ -23,7 +23,13 @@ export function TokenForm() {
   const [copied, setCopied] = useState(false);
   const queryClient = useQueryClient();
 
-  const { register, handleSubmit, reset, formState: { errors, isValid }, setValue } = useForm<TokenFormData>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isValid },
+    setValue,
+  } = useForm<TokenFormData>({
     resolver: zodResolver(tokenSchema),
     defaultValues: { decimals: 18 },
     mode: "onChange",
@@ -43,7 +49,10 @@ export function TokenForm() {
         body: JSON.stringify(data),
       });
       const json = await res.json();
-      if (!json.success) { setError(json.error ?? "Deployment failed"); return; }
+      if (!json.success) {
+        setError(json.error ?? "Deployment failed");
+        return;
+      }
       setResult(json.data);
       queryClient.invalidateQueries({ queryKey: ["tokens"] });
       reset();
@@ -135,7 +144,9 @@ export function TokenForm() {
           max={1_000_000_000}
           disabled={deploying}
         />
-        {errors.initialSupply && <p className="text-sm text-destructive">{errors.initialSupply.message}</p>}
+        {errors.initialSupply && (
+          <p className="text-sm text-destructive">{errors.initialSupply.message}</p>
+        )}
       </div>
 
       <div className="space-y-1">

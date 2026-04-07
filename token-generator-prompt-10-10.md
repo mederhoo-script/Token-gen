@@ -1,6 +1,7 @@
 # Token Generator SaaS - Production-Grade Build Prompt
 
 ## System Role
+
 You are an expert full-stack engineer specializing in Web3 fintech applications. Your goal is to generate production-ready, battle-tested code with zero technical debt.
 
 ---
@@ -19,6 +20,7 @@ You are an expert full-stack engineer specializing in Web3 fintech applications.
 > **Version Note:** All versions below are the verified latest as of April 2026 (confirmed via npm registry).
 
 ### Frontend
+
 - **Next.js 16.2.2** (App Router, server actions preferred over API routes where safe)
 - **React 19.2.4**
 - **Tailwind CSS 4.2.2** (v4 — CSS-based config via `@import "tailwindcss"` + `@theme`; no `tailwind.config.js`; use `@tailwindcss/postcss` in PostCSS)
@@ -30,16 +32,19 @@ You are an expert full-stack engineer specializing in Web3 fintech applications.
 - **TypeScript 6.0.2** (strict mode)
 
 ### Backend
+
 - **Next.js API Routes** (Node.js runtime, requires Node.js ≥ 20.9.0)
 - **Supabase 2.101.1** (`@supabase/supabase-js`) + **@supabase/ssr 0.10.0**
 - **Supabase Realtime** (optional: watch token deployment status)
 
 ### Blockchain
+
 - **Ethers.js 6.16.0** (for wallet interaction and contract deployment)
 - **Solidity ^0.8.19** (ERC20 + OpenZeppelin Contracts)
 - **Sepolia Testnet** (primary network for MVP)
 
 ### DevOps
+
 - **Vercel** (deployment, serverless functions, environment secrets)
 - **GitHub** (version control, secrets rotation)
 
@@ -48,6 +53,7 @@ You are an expert full-stack engineer specializing in Web3 fintech applications.
 ## Core Features (MVP Phase 1)
 
 ### 1. User Authentication & Onboarding
+
 - Email/password signup via Supabase Auth
 - Email verification (required before token creation)
 - Session persistence across browser tabs
@@ -55,6 +61,7 @@ You are an expert full-stack engineer specializing in Web3 fintech applications.
 - Error states: invalid credentials, existing email, rate-limited signup
 
 ### 2. Protected Dashboard
+
 - Visible only to authenticated users
 - Redirect unauthenticated visitors to `/login`
 - Display user email and wallet address
@@ -62,7 +69,9 @@ You are an expert full-stack engineer specializing in Web3 fintech applications.
 - Stats: total tokens deployed, total supply issued
 
 ### 3. Token Creation Workflow
+
 **Form Fields:**
+
 - `name` (string, 1-50 chars): "My Custom Token"
 - `symbol` (string, 1-10 chars, UPPERCASE enforced): "MCT"
 - `initialSupply` (number, 1 to 1 billion, validated client-side)
@@ -70,6 +79,7 @@ You are an expert full-stack engineer specializing in Web3 fintech applications.
 - Checkbox: "I understand this costs gas and is irreversible"
 
 **Validation Rules:**
+
 - All fields required
 - Symbol: alphanumeric only, max 10 chars
 - Name: no special characters except spaces and hyphens
@@ -78,6 +88,7 @@ You are an expert full-stack engineer specializing in Web3 fintech applications.
 - Server-side re-validation before deployment
 
 **UX Flow:**
+
 1. User fills form
 2. Click "Deploy Token"
 3. Show loading state: "Preparing contract... (this takes 20-30 seconds)"
@@ -87,7 +98,9 @@ You are an expert full-stack engineer specializing in Web3 fintech applications.
 7. Estimated gas cost displayed upfront (fetch from RPC)
 
 ### 4. Smart Contract Deployment
+
 **Contract Requirements:**
+
 - Standard ERC20 implementation (OpenZeppelin)
 - Constructor parameters: name, symbol, initialSupply, decimals
 - Mint all initialSupply to deployer (msg.sender)
@@ -96,6 +109,7 @@ You are an expert full-stack engineer specializing in Web3 fintech applications.
 - Verify on Etherscan (contract source stored, not on-chain)
 
 **Deployment Flow:**
+
 - Server calls ethers.js to compile and deploy
 - Uses DEPLOYER_PRIVATE_KEY from environment
 - Waits for 1 block confirmation (~12 seconds on Sepolia)
@@ -103,7 +117,9 @@ You are an expert full-stack engineer specializing in Web3 fintech applications.
 - Stores in database with deployment timestamp
 
 ### 5. Database & Records
+
 **Table: `users`** (managed by Supabase Auth, extend with public schema)
+
 ```sql
 CREATE TABLE public.user_profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -114,6 +130,7 @@ CREATE TABLE public.user_profiles (
 ```
 
 **Table: `tokens`** (user owns their tokens, RLS enforced)
+
 ```sql
 CREATE TABLE public.tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -135,10 +152,12 @@ CREATE INDEX idx_tokens_contract_address ON tokens(contract_address);
 ```
 
 **RLS Policies:**
+
 - Users can SELECT/INSERT only their own tokens
 - Users cannot UPDATE or DELETE tokens (immutable)
 
 ### 6. Real-time Dashboard
+
 - List all tokens for current user
 - Show: name, symbol, supply, contract address, deployed date
 - Link to Etherscan for each token (live explorer)
@@ -151,6 +170,7 @@ CREATE INDEX idx_tokens_contract_address ON tokens(contract_address);
 ## Security Architecture
 
 ### Frontend Security
+
 - ✅ NEVER handle private keys in browser
 - ✅ NEVER expose RPC URLs in client code (if sensitive)
 - ✅ All sensitive operations server-only
@@ -158,6 +178,7 @@ CREATE INDEX idx_tokens_contract_address ON tokens(contract_address);
 - ✅ Rate limit token creation per user (5 tokens/hour, enforced server-side)
 
 ### Backend Security
+
 - ✅ Environment variables: `SUPABASE_URL`, `SUPABASE_KEY` (anon), `SUPABASE_SERVICE_ROLE_KEY`
 - ✅ Blockchain: `DEPLOYER_PRIVATE_KEY`, `RPC_URL` (Sepolia)
 - ✅ Verify auth token on every API call (Supabase JWT)
@@ -168,6 +189,7 @@ CREATE INDEX idx_tokens_contract_address ON tokens(contract_address);
 - ✅ Secrets rotation: GitHub Actions, never commit `.env.local`
 
 ### Blockchain Security
+
 - ✅ Use Sepolia testnet only (no mainnet until audited)
 - ✅ Private key stored in Vercel environment variables, not repo
 - ✅ Contract verified on Etherscan (source code, no proxy)
@@ -252,12 +274,14 @@ token-generator/
 ## Coding Standards & Patterns
 
 ### TypeScript
+
 - ✅ Strict mode enabled
 - ✅ Use `interface` for component props
 - ✅ Use type unions for state/errors
 - ✅ Avoid `any`; use `unknown` if necessary
 
 ### React Components
+
 - ✅ Functional components only (no classes)
 - ✅ Use React hooks (useState, useEffect, useContext)
 - ✅ Custom hooks for business logic
@@ -265,18 +289,21 @@ token-generator/
 - ✅ "use client" only for interactive widgets
 
 ### Async/Await
+
 - ✅ Use async/await, never callbacks
 - ✅ Proper error handling with try/catch
 - ✅ Loading states during async operations
 - ✅ Abort controllers for cleanup
 
 ### State Management
+
 - ✅ React Query for server state (tokens list, deployment status)
 - ✅ useState for local UI state (form inputs, modals)
 - ✅ Supabase Auth context for user auth state
 - ✅ No Redux unless absolutely necessary
 
 ### API Routes
+
 - ✅ Validate auth with `getSession()` or JWT
 - ✅ Validate request body with Zod
 - ✅ Return consistent JSON: `{ success: bool, data?: any, error?: string }`
@@ -284,12 +311,14 @@ token-generator/
 - ✅ Use proper HTTP status codes (201 for created, 400 for bad input, 401 for auth)
 
 ### Error Handling
+
 - ✅ Custom error types for different failure modes
 - ✅ User-friendly error messages in UI
 - ✅ Server-side logging with context (user ID, timestamp, error details)
 - ✅ Graceful fallbacks (empty states, retry buttons)
 
 ### Code Style
+
 - ✅ ESLint + Prettier (enforce in CI)
 - ✅ Max line length: 100 chars
 - ✅ Prefer const, avoid let/var
@@ -329,6 +358,7 @@ contract Token is ERC20 {
 ```
 
 **Contract Design Decisions:**
+
 - Immutable supply (no mint/burn functions) → prevents inflation abuse
 - OpenZeppelin ERC20 → audited, standard-compliant
 - No proxy → simpler, transparent (source verifiable on Etherscan)
@@ -341,6 +371,7 @@ contract Token is ERC20 {
 ### Endpoint: `POST /api/tokens`
 
 **Request:**
+
 ```json
 {
   "name": "My Custom Token",
@@ -351,6 +382,7 @@ contract Token is ERC20 {
 ```
 
 **Response (Success):**
+
 ```json
 {
   "success": true,
@@ -365,6 +397,7 @@ contract Token is ERC20 {
 ```
 
 **Response (Error):**
+
 ```json
 {
   "success": false,
@@ -392,7 +425,7 @@ contract Token is ERC20 {
    - Create contract bytecode locally
    - Call `eth_estimateGas` on Sepolia RPC
    - If > 3M gas, reject (likely misconfiguration)
-   - Calculate cost: gas * gasPrice (fetch from RPC)
+   - Calculate cost: gas \* gasPrice (fetch from RPC)
    - Log for monitoring
 
 5. **Deploy Contract**
@@ -412,21 +445,22 @@ contract Token is ERC20 {
 
 ### Error Handling
 
-| Scenario | Status | Message |
-|----------|--------|---------|
-| Missing auth header | 401 | "Unauthorized" |
-| Invalid JWT | 401 | "Invalid session" |
-| Invalid name/symbol | 400 | "Symbol must be 1-10 uppercase letters" |
-| Rate limited | 429 | "Too many deployments. Max 5/hour" |
-| Insufficient gas estimate | 500 | "Gas estimation failed. Try again" |
-| Contract deployment failed | 500 | "Deployment failed. Check Etherscan" |
-| Database insert failed | 500 | "Failed to save token" |
+| Scenario                   | Status | Message                                 |
+| -------------------------- | ------ | --------------------------------------- |
+| Missing auth header        | 401    | "Unauthorized"                          |
+| Invalid JWT                | 401    | "Invalid session"                       |
+| Invalid name/symbol        | 400    | "Symbol must be 1-10 uppercase letters" |
+| Rate limited               | 429    | "Too many deployments. Max 5/hour"      |
+| Insufficient gas estimate  | 500    | "Gas estimation failed. Try again"      |
+| Contract deployment failed | 500    | "Deployment failed. Check Etherscan"    |
+| Database insert failed     | 500    | "Failed to save token"                  |
 
 ---
 
 ## Frontend Flow & UX Patterns
 
 ### Authentication Flow
+
 1. User lands on `/` (home page)
 2. If logged in → redirect to `/dashboard`
 3. If not → show "Login" and "Sign Up" buttons
@@ -445,6 +479,7 @@ contract Token is ERC20 {
    - On success → redirect to `/dashboard`
 
 ### Token Creation Flow
+
 1. User on `/create-token`
 2. Form pre-fill: name="", symbol="", supply="", decimals=18
 3. Real-time validation as user types
@@ -469,6 +504,7 @@ contract Token is ERC20 {
    - Log error details server-side
 
 ### Dashboard Flow
+
 1. User lands on `/dashboard`
 2. Show loading skeleton (3 placeholder cards)
 3. Fetch tokens using React Query:
@@ -489,6 +525,7 @@ contract Token is ERC20 {
 ## Environment Variables & Configuration
 
 ### `.env.local` (LOCAL ONLY, NEVER COMMIT)
+
 ```bash
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
@@ -506,11 +543,13 @@ NODE_ENV=development
 ```
 
 ### Vercel Environment Setup
+
 - Set all non-`NEXT_PUBLIC_*` vars in Vercel dashboard (encrypted)
 - Use GitHub Actions for secrets rotation (monthly)
 - Never commit `.env.local`
 
 ### Constants (`lib/blockchain/constants.ts`)
+
 ```typescript
 export const CHAIN_CONFIG = {
   name: "Sepolia",
@@ -531,21 +570,25 @@ export const TOKEN_LIMITS = {
 ## Testing Strategy
 
 ### Unit Tests
+
 - Smart contract: compile, function calls, events
 - Validation schemas: edge cases, invalid inputs
 - Utility functions: formatting, conversions
 
 ### Integration Tests
+
 - Auth flow: signup, login, logout, session persistence
 - Token creation: form submission, API call, database insert
 - Database queries: RLS policies, data isolation
 
 ### E2E Tests (Playwright)
+
 - Happy path: signup → login → create token → view on dashboard
 - Error paths: invalid form, rate limit, network failure
 - Accessibility: keyboard navigation, screen readers
 
 ### Load Testing
+
 - Estimate 10 concurrent deployments
 - Monitor gas estimation calls (RPC rate limits)
 - Track Vercel function duration (max 60s timeout)
@@ -555,6 +598,7 @@ export const TOKEN_LIMITS = {
 ## Deployment Checklist
 
 ### Pre-Deployment
+
 - [ ] All tests passing (unit, integration, E2E)
 - [ ] Environment variables validated
 - [ ] Etherscan API key ready for contract verification
@@ -564,6 +608,7 @@ export const TOKEN_LIMITS = {
 - [ ] Sentry or similar monitoring enabled
 
 ### Deployment (Vercel)
+
 - [ ] Secrets uploaded to Vercel dashboard
 - [ ] Preview deployment tested
 - [ ] Production deployment with single click
@@ -571,6 +616,7 @@ export const TOKEN_LIMITS = {
 - [ ] Monitoring dashboards set up
 
 ### Post-Deployment
+
 - [ ] Smoke test: create token end-to-end
 - [ ] Check logs for errors
 - [ ] Verify Etherscan contract links work
@@ -582,6 +628,7 @@ export const TOKEN_LIMITS = {
 ## Monitoring & Observability
 
 ### Metrics to Track
+
 - Token deployments per hour (trend)
 - API latency (p50, p95, p99)
 - Gas costs and failed deployments
@@ -589,12 +636,14 @@ export const TOKEN_LIMITS = {
 - Rate limit hits (false positives?)
 
 ### Logging
+
 - Server-side errors with full context (user ID, request ID, stack trace)
 - Blockchain events (deployment start, tx hash, confirmation)
 - Database operations (slow queries, constraint violations)
 - Authentication events (logins, signups, logouts)
 
 ### Alerts
+
 - Deployment success rate < 95%
 - API latency > 30s
 - RPC endpoint down
@@ -617,18 +666,18 @@ export const TOKEN_LIMITS = {
 
 ## Key Decision Rationale
 
-| Decision | Why |
-|----------|-----|
-| Sepolia testnet | Safe, free, no mainnet risk. Upgrade to mainnet only after audit |
-| OpenZeppelin ERC20 | Audited, standard, reduces security risk |
-| Server-side deployment | Protect private key, ensure nonce safety, handle long operations |
-| Supabase RLS | Fine-grained access control, no app-level permission logic needed |
-| TanStack Query v5 | Handles caching, refetching, race conditions automatically |
-| Zod v4 | Type-safe runtime validation, good error messages |
-| Ethers.js v6 | Modern syntax, better TypeScript support, active maintenance |
-| Tailwind CSS v4 | CSS-based config (`@import "tailwindcss"` + `@theme`); no `tailwind.config.js`; use `@tailwindcss/postcss` |
-| React 19 | Concurrent features, improved server components, stable `useActionState` |
-| Next.js 16 | Uses `proxy.ts` instead of `middleware.ts` for request interception |
+| Decision               | Why                                                                                                        |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Sepolia testnet        | Safe, free, no mainnet risk. Upgrade to mainnet only after audit                                           |
+| OpenZeppelin ERC20     | Audited, standard, reduces security risk                                                                   |
+| Server-side deployment | Protect private key, ensure nonce safety, handle long operations                                           |
+| Supabase RLS           | Fine-grained access control, no app-level permission logic needed                                          |
+| TanStack Query v5      | Handles caching, refetching, race conditions automatically                                                 |
+| Zod v4                 | Type-safe runtime validation, good error messages                                                          |
+| Ethers.js v6           | Modern syntax, better TypeScript support, active maintenance                                               |
+| Tailwind CSS v4        | CSS-based config (`@import "tailwindcss"` + `@theme`); no `tailwind.config.js`; use `@tailwindcss/postcss` |
+| React 19               | Concurrent features, improved server components, stable `useActionState`                                   |
+| Next.js 16             | Uses `proxy.ts` instead of `middleware.ts` for request interception                                        |
 
 ---
 
@@ -668,19 +717,20 @@ When implementing, follow this order:
 
 **Common Issues:**
 
-| Problem | Solution |
-|---------|----------|
-| "Gas estimation failed" | RPC endpoint rate limited. Retry after 5s, or upgrade RPC provider |
-| "Contract not showing on Etherscan" | Wait 30s, block hasn't confirmed yet |
-| "Rate limit exceeded" | Max 5 tokens/hour per user. Wait or ask support |
-| "Private key exposed in logs" | Rotate key immediately, never log sensitive data |
-| "Slow deployments" | Expected 20-30s. Network congestion may cause delays |
+| Problem                             | Solution                                                           |
+| ----------------------------------- | ------------------------------------------------------------------ |
+| "Gas estimation failed"             | RPC endpoint rate limited. Retry after 5s, or upgrade RPC provider |
+| "Contract not showing on Etherscan" | Wait 30s, block hasn't confirmed yet                               |
+| "Rate limit exceeded"               | Max 5 tokens/hour per user. Wait or ask support                    |
+| "Private key exposed in logs"       | Rotate key immediately, never log sensitive data                   |
+| "Slow deployments"                  | Expected 20-30s. Network congestion may cause delays               |
 
 ---
 
 ## Final Notes
 
 This specification is production-ready and scalable to 10K+ users. Code should be written with the assumption that:
+
 - Other developers will maintain this codebase
 - The app will run 24/7 without manual intervention
 - Users depend on it for critical operations

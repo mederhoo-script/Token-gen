@@ -4,17 +4,17 @@ A production-grade multi-tenant SaaS platform that lets users deploy custom **ER
 
 ## Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Framework | Next.js 16.2.2 (App Router) |
-| UI | React 19.2.4 + Tailwind CSS 4.2.2 + shadcn/ui |
-| Auth & DB | Supabase (Auth + PostgreSQL + RLS) |
-| Blockchain | Ethers.js 6.16.0 + Solidity 0.8.19 (OpenZeppelin ERC20) |
-| Validation | Zod 4.3.6 + react-hook-form 7.72.1 |
-| Data fetching | TanStack Query 5.96.2 |
-| Language | TypeScript 6.0.2 (strict) |
-| Linting | ESLint 10 (flat config) |
-| Deployment | Vercel + Sepolia Testnet |
+| Layer         | Technology                                              |
+| ------------- | ------------------------------------------------------- |
+| Framework     | Next.js 16.2.2 (App Router)                             |
+| UI            | React 19.2.4 + Tailwind CSS 4.2.2 + shadcn/ui           |
+| Auth & DB     | Supabase (Auth + PostgreSQL + RLS)                      |
+| Blockchain    | Ethers.js 6.16.0 + Solidity 0.8.19 (OpenZeppelin ERC20) |
+| Validation    | Zod 4.3.6 + react-hook-form 7.72.1                      |
+| Data fetching | TanStack Query 5.96.2                                   |
+| Language      | TypeScript 6.0.2 (strict)                               |
+| Linting       | ESLint 10 (flat config)                                 |
+| Deployment    | Vercel + Sepolia Testnet                                |
 
 ## Features
 
@@ -72,22 +72,23 @@ cp .env.example .env.local
 
 Fill in `.env.local`:
 
-| Variable | Description |
-|----------|-------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server only) |
-| `DEPLOYER_PRIVATE_KEY` | Hex private key of the wallet that pays gas |
-| `SEPOLIA_RPC_URL` | Sepolia JSON-RPC endpoint (Infura, Alchemy, etc.) |
-| `ETHERSCAN_API_KEY` | For contract verification (optional) |
-| `TOKEN_BYTECODE` | Compiled bytecode of `contracts/Token.sol` (see below) |
-| `NEXT_PUBLIC_APP_URL` | Your app URL (e.g. `http://localhost:3000`) |
+| Variable                        | Description                                            |
+| ------------------------------- | ------------------------------------------------------ |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Your Supabase project URL                              |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key                               |
+| `SUPABASE_SERVICE_ROLE_KEY`     | Supabase service role key (server only)                |
+| `DEPLOYER_PRIVATE_KEY`          | Hex private key of the wallet that pays gas            |
+| `SEPOLIA_RPC_URL`               | Sepolia JSON-RPC endpoint (Infura, Alchemy, etc.)      |
+| `ETHERSCAN_API_KEY`             | For contract verification (optional)                   |
+| `TOKEN_BYTECODE`                | Compiled bytecode of `contracts/Token.sol` (see below) |
+| `NEXT_PUBLIC_APP_URL`           | Your app URL (e.g. `http://localhost:3000`)            |
 
 ### 3. Compile the smart contract
 
 You need to compile `contracts/Token.sol` to get the bytecode for deployment.
 
 **Using Hardhat (recommended):**
+
 ```bash
 npm install --save-dev hardhat @openzeppelin/contracts
 npx hardhat compile
@@ -134,15 +135,16 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## API Reference
 
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/api/health` | GET | No | Readiness probe |
-| `/api/tokens` | GET | JWT | List authenticated user's tokens |
-| `/api/tokens` | POST | JWT | Deploy a new ERC20 token |
-| `/api/tokens/[id]` | GET | JWT | Get a single token by ID |
-| `/api/auth/callback` | GET | — | Supabase OAuth / email verification handler |
+| Endpoint             | Method | Auth | Description                                 |
+| -------------------- | ------ | ---- | ------------------------------------------- |
+| `/api/health`        | GET    | No   | Readiness probe                             |
+| `/api/tokens`        | GET    | JWT  | List authenticated user's tokens            |
+| `/api/tokens`        | POST   | JWT  | Deploy a new ERC20 token                    |
+| `/api/tokens/[id]`   | GET    | JWT  | Get a single token by ID                    |
+| `/api/auth/callback` | GET    | —    | Supabase OAuth / email verification handler |
 
 All authenticated endpoints return:
+
 ```json
 { "success": true, "data": { ... } }
 // or
@@ -155,9 +157,9 @@ Maximum **5 token deployments per user per hour**, enforced server-side by query
 
 ## Scripts
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start development server |
-| `npm run build` | Production build |
-| `npm run start` | Start production server |
-| `npm run lint` | ESLint (flat config, v10) |
+| Command         | Description               |
+| --------------- | ------------------------- |
+| `npm run dev`   | Start development server  |
+| `npm run build` | Production build          |
+| `npm run start` | Start production server   |
+| `npm run lint`  | ESLint (flat config, v10) |
