@@ -1,6 +1,6 @@
 "use client";
-import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useState, useEffect } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { tokenSchema, type TokenFormData } from "@/lib/validation/schemas";
 import { useQueryClient } from "@tanstack/react-query";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CHAIN_CONFIG } from "@/lib/blockchain/constants";
+import { useToast } from "@/lib/hooks/use-toast";
 
 interface DeployResult {
   contractAddress: string;
@@ -21,12 +22,16 @@ export function TokenForm() {
   const [deploying, setDeploying] = useState(false);
   const [result, setResult] = useState<DeployResult | null>(null);
   const [copied, setCopied] = useState(false);
+  const [gasCost, setGasCost] = useState<string | null>(null);
+  const [estimating, setEstimating] = useState(false);
   const queryClient = useQueryClient();
+  const { toast: showToast } = useToast();
 
   const {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isValid },
     setValue,
   } = useForm<TokenFormData>({
@@ -34,6 +39,55 @@ export function TokenForm() {
     defaultValues: { decimals: 18 },
     mode: "onChange",
   });
+
+  // Watch fields needed for gas estimation
+  const [name, symbol, initialSupply, decimals] = useWatch({
+    control,
+    name: ["name", "symbol", "initialSupply", "decimals"],
+  });
+
+  // Debounced gas estimate: fire whenever the four core fields are valid
+  useEffect(() => {
+    if (!name || !symbol || !initialSupply || !decimals) {
+      setGasCost(null);
+      return;
+    }
+    // Basic checks to avoid spamming the RPC with partial/invalid values
+    if (
+      name.length < 1 ||
+      symbol.length < 1 ||
+      initialSupply < 1 ||
+      initialSupply > 1_000_000_000
+    ) {
+      setGasCost(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      setEstimating(true);
+      try {
+        const res = await fetch("/api/tokens/estimate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, symbol, initialSupply, decimals }),
+          signal: controller.signal,
+        });
+        const json = await res.json();
+        if (json.success) setGasCost(json.data.gasCost);
+        else setGasCost(null);
+      } catch {
+        setGasCost(null);
+      } finally {
+        setEstimating(false);
+      }
+    }, 800); // 800 ms debounce
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [name, symbol, initialSupply, decimals]);
 
   function handleSymbolChange(e: React.ChangeEvent<HTMLInputElement>) {
     setValue("symbol", e.target.value.toUpperCase(), { shouldValidate: true });
@@ -55,6 +109,7 @@ export function TokenForm() {
       }
       setResult(json.data);
       queryClient.invalidateQueries({ queryKey: ["tokens"] });
+      showToast({ title: "Token deployed!", description: "Your ERC20 token is live on Sepolia." });
       reset();
     } catch {
       setError("Network error. Please try again.");
@@ -177,6 +232,13 @@ export function TokenForm() {
         </Label>
       </div>
       {errors.confirmed && <p className="text-sm text-destructive">{errors.confirmed.message}</p>}
+
+      {/* Gas estimate */}
+      {(gasCost || estimating) && (
+        <p className="text-sm text-muted-foreground">
+          {estimating ? "Estimating gas cost…" : `Estimated gas cost: ~${gasCost}`}
+        </p>
+      )}
 
       <Button type="submit" className="w-full" disabled={deploying || !isValid}>
         {deploying ? "Deploying..." : "Deploy Token"}
